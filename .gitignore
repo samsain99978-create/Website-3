@@ -1,0 +1,15 @@
+# Sensitive Environment & Credential Files
+js/env.js
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS / Editor Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+node_modules/
