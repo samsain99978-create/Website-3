@@ -82,25 +82,71 @@ function pushToFirebase(key, value) {
 }
 
 // Listen to changes from Firebase and update local state + UI
+// Listen to changes from Firebase and update local state + UI
 function listenToFirebaseUpdates() {
     if (!firebaseInitialized || !firebaseDb) return;
 
     const ref = firebaseDb.ref('a7satta');
     ref.on('value', function(snapshot) {
-        const val = snapshot.val();
-        if (!val) return;
-
+        const val = snapshot.val() || {};
         console.log('[A7 Firebase] Received real-time update from Firebase!');
         let hasChanges = false;
 
-        Object.keys(val).forEach(function(key) {
+        // List of all essential keys to sync
+        const keysToCheck = [
+            'games_primary', 'games_secondary', 'featured', 'marquee', 'hindi_text',
+            'ad_schedule', 'ad_content', 'chart1_headers', 'chart1_data',
+            'chart2_headers', 'chart2_data', 'chart3_headers', 'chart3_data',
+            'fullchart_headers', 'fullchart_data', 'prev_fullchart_headers', 'prev_fullchart_data',
+            'record_games', 'year_headers', 'year_2026_data', 'year_2025_data',
+            'year_2024_data', 'year_2023_data', 'disclaimer', 'credentials'
+        ];
+
+        keysToCheck.forEach(function(key) {
             const remoteVal = val[key];
             const localValStr = localStorage.getItem('a7_' + key);
-            const remoteValStr = typeof remoteVal === 'object' ? JSON.stringify(remoteVal) : remoteVal;
+            
+            if (remoteVal !== undefined) {
+                const remoteValStr = typeof remoteVal === 'object' ? JSON.stringify(remoteVal) : String(remoteVal);
+                
+                // Protect local filled values from being overwritten by empty/dash remote data
+                let preserveLocal = false;
 
-            if (localValStr !== remoteValStr) {
-                localStorage.setItem('a7_' + key, remoteValStr);
-                hasChanges = true;
+                if ((key === 'year_2025_data' || key === 'year_2024_data' || key === 'year_2023_data') && Array.isArray(remoteVal)) {
+                    try {
+                        const isRemoteAllDash = remoteVal.every(function(r) {
+                            return !r.values || r.values.every(function(v) { return v === '-'; });
+                        });
+                        if (isRemoteAllDash) {
+                            preserveLocal = true;
+                            if (typeof populateYearlyRandomData === 'function') {
+                                populateYearlyRandomData(true);
+                            }
+                        }
+                    } catch(e) {}
+                } else if (key === 'games_primary' && Array.isArray(remoteVal) && localValStr) {
+                    try {
+                        const localVal = JSON.parse(localValStr);
+                        const localHasToday = Array.isArray(localVal) && localVal.some(function(g) { return g.today && g.today !== '' && g.today !== '-'; });
+                        const remoteHasToday = remoteVal.some(function(g) { return g.today && g.today !== '' && g.today !== '-'; });
+                        if (localHasToday && !remoteHasToday) {
+                            preserveLocal = true;
+                            pushToFirebase(key, localVal);
+                        }
+                    } catch(e) {}
+                }
+
+                if (!preserveLocal && localValStr !== remoteValStr) {
+                    localStorage.setItem('a7_' + key, remoteValStr);
+                    hasChanges = true;
+                }
+            } else if (localValStr) {
+                // Key missing in Firebase — push local value to cloud
+                try {
+                    pushToFirebase(key, JSON.parse(localValStr));
+                } catch(e) {
+                    pushToFirebase(key, localValStr);
+                }
             }
         });
 
@@ -136,17 +182,15 @@ function listenToFirebaseUpdates() {
             pushToFirebase('ad_schedule', defaultSchedule);
         }
 
-        if (hasChanges) {
-            // Trigger UI updates on active page
-            if (typeof initHomePage === 'function' && document.getElementById('primary-table-body')) {
-                initHomePage();
-            }
-            if (typeof initChartPage === 'function' && document.getElementById('fullchart-table')) {
-                initChartPage();
-            }
-            if (typeof initAdminPage === 'function' && document.getElementById('admin-primary-table')) {
-                initAdminPage();
-            }
+        // Always trigger UI refresh on active page
+        if (typeof initHomePage === 'function' && document.getElementById('primary-table-body')) {
+            initHomePage();
+        }
+        if (typeof initChartPage === 'function' && document.getElementById('fullchart-table')) {
+            initChartPage();
+        }
+        if (typeof initAdminPage === 'function' && document.getElementById('admin-primary-table')) {
+            initAdminPage();
         }
     });
 }

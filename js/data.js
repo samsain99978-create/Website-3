@@ -3,8 +3,8 @@
 // ============================================================
 
 const DEFAULT_CREDENTIALS = {
-    username: (typeof window !== 'undefined' && window.ENV_CONFIG && window.ENV_CONFIG.ADMIN_USERNAME) ? window.ENV_CONFIG.ADMIN_USERNAME : "Adminx285",
-    password: (typeof window !== 'undefined' && window.ENV_CONFIG && window.ENV_CONFIG.ADMIN_PASSWORD) ? window.ENV_CONFIG.ADMIN_PASSWORD : "Admin@2805"
+    username: (typeof window !== 'undefined' && window.ENV_CONFIG && window.ENV_CONFIG.ADMIN_USERNAME) ? window.ENV_CONFIG.ADMIN_USERNAME : "rahulhindu98",
+    password: (typeof window !== 'undefined' && window.ENV_CONFIG && window.ENV_CONFIG.ADMIN_PASSWORD) ? window.ENV_CONFIG.ADMIN_PASSWORD : "sharukh596"
 };
 
 const DEFAULT_GAMES_PRIMARY = [
@@ -262,24 +262,60 @@ const DEFAULT_RECORD_GAMES = [
 const DEFAULT_YEAR_HEADERS = DEFAULT_RECORD_GAMES.map(function(g) { return g.display; });
 
 // Generate 12 monthly rows for a yearly chart (JAN–DEC)
-function generateYearlyChartData(year) {
+function generateYearlyChartData(year, fillRandom) {
     var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
     var gameCount = DEFAULT_RECORD_GAMES.length;
     return months.map(function(m) {
         var vals = [];
-        for (var i = 0; i < gameCount; i++) vals.push('-');
+        for (var i = 0; i < gameCount; i++) {
+            if (fillRandom) {
+                var randomVal = Math.floor(Math.random() * 90) + 10;
+                vals.push(String(randomVal));
+            } else {
+                vals.push('-');
+            }
+        }
         return { date: m + ' ' + year, values: vals };
     });
 }
 
-const DEFAULT_YEAR_2026_DATA = generateYearlyChartData(2026);
-const DEFAULT_YEAR_2025_DATA = generateYearlyChartData(2025);
-const DEFAULT_YEAR_2024_DATA = generateYearlyChartData(2024);
-const DEFAULT_YEAR_2023_DATA = generateYearlyChartData(2023);
+const DEFAULT_YEAR_2026_DATA = generateYearlyChartData(2026, false);
+const DEFAULT_YEAR_2025_DATA = generateYearlyChartData(2025, true);
+const DEFAULT_YEAR_2024_DATA = generateYearlyChartData(2024, true);
+const DEFAULT_YEAR_2023_DATA = generateYearlyChartData(2023, true);
+
+function populateYearlyRandomData(forceOverwrite) {
+    var years = [2025, 2024, 2023];
+    years.forEach(function(year) {
+        var key = 'year_' + year + '_data';
+        var headers = getData('year_headers');
+        if (!Array.isArray(headers) || headers.length === 0) {
+            headers = (typeof DEFAULT_YEAR_HEADERS !== 'undefined' ? DEFAULT_YEAR_HEADERS : []);
+        }
+        var data = getData(key);
+        if (!Array.isArray(data) || data.length === 0) {
+            data = generateYearlyChartData(year, true);
+        } else {
+            data.forEach(function(row) {
+                if (!row.values) row.values = [];
+                for (var i = 0; i < headers.length; i++) {
+                    if (forceOverwrite || !row.values[i] || row.values[i] === '-' || row.values[i] === '') {
+                        row.values[i] = String(Math.floor(Math.random() * 90) + 10);
+                    }
+                }
+            });
+        }
+        setData(key, data);
+        if (typeof pushToFirebase === 'function') {
+            pushToFirebase(key, data);
+        }
+    });
+}
 
 if (typeof window !== 'undefined') {
     window.DEFAULT_RECORD_GAMES = DEFAULT_RECORD_GAMES;
     window.DEFAULT_YEAR_HEADERS = DEFAULT_YEAR_HEADERS;
+    window.populateYearlyRandomData = populateYearlyRandomData;
 }
 
 const DEFAULT_DISCLAIMER = "!! DISCLAIMER:- This is a demo website. Viewing This Website Is Your Own Risk, All The Information Shown On Website Is Sponsored And We Warn You That Matka Gambling/Satta May Be Banned Or Illegal In Your Country..., We Are Not Responsible For Any Issues Or Scam..., We Respect All Country Rules/Laws... If You Not Agree With Our Site Disclaimer... Please Quit Our Site Right Now. Thank You.";
@@ -454,8 +490,9 @@ function checkDateRollover() {
             if (typeof renderSecondaryTable === 'function') renderSecondaryTable();
             if (typeof renderLiveResults === 'function') renderLiveResults();
             if (typeof renderFeatured === 'function') renderFeatured();
-            if (typeof renderAdminPrimaryTable === 'function') renderAdminPrimaryTable();
-            if (typeof renderAdminChart === 'function') {
+            if (typeof initAdminPage === 'function' && document.getElementById('admin-primary-table')) {
+                initAdminPage();
+            } else if (typeof renderAdminChart === 'function') {
                 renderAdminChart('admin-chart1', 'chart1_headers', 'chart1_data', 0);
                 renderAdminChart('admin-chart2', 'chart2_headers', 'chart2_data', 1);
                 renderAdminChart('admin-chart3', 'chart3_headers', 'chart3_data', 2);
@@ -522,6 +559,15 @@ function initData(forceReset) {
             if (typeof pushToFirebase === 'function') pushToFirebase('games_primary', prim);
         }
         localStorage.setItem('a7_initialized_v14', 'true');
+    }
+
+    // v15: Populate random 2-digit values (10 to 99) for 2025, 2024, 2023 yearly record charts & set updated admin credentials
+    if (forceReset || !localStorage.getItem('a7_initialized_v15')) {
+        localStorage.setItem('a7_credentials', JSON.stringify(DEFAULT_CREDENTIALS));
+        populateYearlyRandomData(true);
+        localStorage.setItem('a7_initialized_v15', 'true');
+    } else {
+        populateYearlyRandomData(false);
     }
 
     // Trim any extra trailing elements in dataset row values so row.values.length matches headers.length

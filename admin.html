@@ -136,6 +136,11 @@
         <!-- TAB: YEARLY RECORD CHARTS -->
         <!-- ============================================ -->
         <div class="tab-content" id="tab-yearly">
+            <div style="margin-bottom:15px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <button class="btn-admin btn-success" onclick="populateYearlyRandomData(true); initAdminPage(); showToast('Filled random numbers (10-99) for 2025, 2024, 2023!', 'success');" style="padding:10px 20px;font-size:13px;font-weight:700;">
+                    🎲 Auto-Fill Random Results (10 to 99) for 2025, 2024 & 2023
+                </button>
+            </div>
             <div class="admin-section">
                 <h3>SATTA RECORD CHART — Game List <span class="section-badge">Click to edit game names</span></h3>
                 <p style="color:#888;font-size:13px;margin-bottom:10px;">These are the games shown in the "SATTA RECORD CHART" list on the website. Click any game name to edit it inline or add/delete games. Changes automatically sync to the yearly record charts below.</p>
@@ -245,6 +250,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="js/env.js?v=14"></script>
 <script src="js/data.js?v=14"></script>
 <script src="js/firebase-data.js?v=14"></script>
 <script src="js/admin.js?v=14"></script>
