@@ -423,11 +423,7 @@ function autoSyncTodayResults() {
         if (updated) {
             localStorage.setItem('a7_' + dataKey, JSON.stringify(data));
             localStorage.setItem('a7_' + headerKey, JSON.stringify(headers));
-            // BUG 10 FIX: push BOTH data AND headers to Firebase (headers were missing before)
-            if (typeof pushToFirebase === 'function') {
-                pushToFirebase(dataKey, data);
-                pushToFirebase(headerKey, headers);
-            }
+            if (typeof pushToFirebase === 'function') pushToFirebase(dataKey, data);
         }
     }
 
@@ -464,8 +460,8 @@ function checkDateRollover() {
                 }
                 g.today = '';
             });
-            // Use setData so the firebase-data.js wrapper auto-pushes to cloud
-            setData('games_primary', primary);
+            localStorage.setItem('a7_games_primary', JSON.stringify(primary));
+            if (typeof pushToFirebase === 'function') pushToFirebase('games_primary', primary);
         }
 
         // 2. Shift secondary table results if present
@@ -477,7 +473,8 @@ function checkDateRollover() {
                 }
                 g.today = '';
             });
-            setData('games_secondary', secondary);
+            localStorage.setItem('a7_games_secondary', JSON.stringify(secondary));
+            if (typeof pushToFirebase === 'function') pushToFirebase('games_secondary', secondary);
         }
 
         // 3. Update last active date to today

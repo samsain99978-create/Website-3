@@ -3,9 +3,6 @@
 // ============================================================
 
 // Live Clock
-// BUG 8 FIX: track last rollover check time — don't call every second
-var lastDateRolloverCheck = 0;
-
 function updateClock() {
     const now = new Date();
     const options = { year: 'numeric', month: 'long', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
@@ -13,11 +10,7 @@ function updateClock() {
     const el = document.getElementById('clockbox');
     if (el) el.textContent = formatted;
 
-    // BUG 8 FIX: only run checkDateRollover once per minute, not every second.
-    // This prevents up to 4 Firebase writes/second from autoSyncTodayResults.
-    var nowMs = Date.now();
-    if (typeof checkDateRollover === 'function' && (nowMs - lastDateRolloverCheck) > 60000) {
-        lastDateRolloverCheck = nowMs;
+    if (typeof checkDateRollover === 'function') {
         checkDateRollover();
     }
 }
@@ -494,22 +487,9 @@ function initLoginPage() {
             e.preventDefault();
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('user_pass').value.trim();
-
-            // Primary: check localStorage credentials
             const creds = getData('credentials');
-            const localMatch = creds && username === creds.username && password === creds.password;
 
-            // Fallback: always allow login with ENV_CONFIG hardcoded credentials.
-            // Ensures admin can log in even if localStorage was corrupted by old Firebase sync bug.
-            const envUser = (window.ENV_CONFIG && window.ENV_CONFIG.ADMIN_USERNAME) ? window.ENV_CONFIG.ADMIN_USERNAME : 'rahulhindu98';
-            const envPass = (window.ENV_CONFIG && window.ENV_CONFIG.ADMIN_PASSWORD) ? window.ENV_CONFIG.ADMIN_PASSWORD : 'sharukh596';
-            const envMatch = (username === envUser && password === envPass);
-
-            if (localMatch || envMatch) {
-                // If localStorage was out of sync with ENV_CONFIG, repair it silently
-                if (!localMatch && envMatch) {
-                    setData('credentials', { username: envUser, password: envPass });
-                }
+            if (creds && username === creds.username && password === creds.password) {
                 sessionStorage.setItem('a7_logged_in', 'true');
                 window.location.href = 'admin.html';
             } else {
