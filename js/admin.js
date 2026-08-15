@@ -79,7 +79,10 @@ function updateSettingsGateState() {
 // Tab System
 // ============================================================
 
+var currentAdminTab = 'results';
+
 function switchTab(tabName) {
+    currentAdminTab = tabName || 'results';
     document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
     document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
     
@@ -111,7 +114,11 @@ function makeEditable(cell, saveCallback) {
     input.focus();
     input.select();
 
+    var saved = false;
+
     function save() {
+        if (saved) return;
+        saved = true;
         var newValue = input.value.trim();
         cell.classList.remove('editing');
         cell.textContent = newValue;
@@ -122,6 +129,8 @@ function makeEditable(cell, saveCallback) {
     }
 
     function cancel() {
+        if (saved) return;
+        saved = true;
         cell.classList.remove('editing');
         cell.textContent = currentValue;
     }
@@ -132,7 +141,7 @@ function makeEditable(cell, saveCallback) {
     });
 
     input.addEventListener('blur', function() {
-        setTimeout(save, 100);
+        setTimeout(save, 50);
     });
 }
 
@@ -488,7 +497,47 @@ function editChartValue(chartIndex, rowIndex, valueIndex, cell) {
     var keys = getChartKeys(chartIndex);
     makeEditable(cell, function(newValue) {
         var data = getData(keys.data);
+        if (!data[rowIndex]) return;
         data[rowIndex].values[valueIndex] = newValue;
+
+        // Bi-directional sync: If editing a row for today's date, sync to primary & secondary games
+        var rowDate = data[rowIndex].date || '';
+        var now = new Date();
+        var dd = String(now.getDate()).padStart(2, '0');
+        var mm = String(now.getMonth() + 1).padStart(2, '0');
+        var todayStr = dd + '-' + mm; // e.g. "15-08"
+
+        if (rowDate === todayStr || rowDate === "Today" || rowDate === "आज") {
+            var headers = getData(keys.header);
+            var colHeader = (headers && headers[valueIndex]) ? headers[valueIndex] : '';
+            if (colHeader) {
+                var primary = getData('games_primary') || [];
+                var secondary = getData('games_secondary') || [];
+                var updatedGames = false;
+
+                primary.forEach(function(g) {
+                    if (findHeaderColumnIndex([colHeader], g) !== -1) {
+                        g.today = (newValue !== '-' ? newValue : '');
+                        updatedGames = true;
+                    }
+                });
+
+                secondary.forEach(function(g) {
+                    if (findHeaderColumnIndex([colHeader], g) !== -1) {
+                        g.today = (newValue !== '-' ? newValue : '');
+                        updatedGames = true;
+                    }
+                });
+
+                if (updatedGames) {
+                    setData('games_primary', primary);
+                    setData('games_secondary', secondary);
+                    if (typeof renderAdminPrimaryTable === 'function') renderAdminPrimaryTable();
+                    if (typeof renderAdminSecondaryTable === 'function') renderAdminSecondaryTable();
+                }
+            }
+        }
+
         setData(keys.data, data);
     });
 }
@@ -992,6 +1041,6 @@ function initAdminPage() {
     renderAdminFirebase();
     renderAdminCredentials();
 
-    // Set first tab active
-    switchTab('results');
+    // Maintain active tab state across re-renders
+    switchTab(currentAdminTab || 'results');
 }

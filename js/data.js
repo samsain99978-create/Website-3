@@ -406,19 +406,18 @@ function autoSyncTodayResults() {
                 }
             }
 
-            var expectedVal = '-';
-            if (matchingGame && matchingGame.today && matchingGame.today !== '' && matchingGame.today !== '-') {
-                expectedVal = matchingGame.today;
-            }
-
             if (!data[targetRowIndex].values) {
                 data[targetRowIndex].values = [];
             }
 
-            if (data[targetRowIndex].values[colIndex] !== expectedVal) {
-                data[targetRowIndex].values[colIndex] = expectedVal;
-                updated = true;
+            // CRITICAL FIX: Only sync if matchingGame exists AND has a valid declared result today
+            if (matchingGame && matchingGame.today && matchingGame.today !== '' && matchingGame.today !== '-') {
+                if (data[targetRowIndex].values[colIndex] !== matchingGame.today) {
+                    data[targetRowIndex].values[colIndex] = matchingGame.today;
+                    updated = true;
+                }
             }
+            // If matchingGame is null or has no today result, DO NOT overwrite chart cell with '-'
         });
 
         if (updated) {

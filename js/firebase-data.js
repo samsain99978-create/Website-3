@@ -134,6 +134,26 @@ function listenToFirebaseUpdates() {
                             pushToFirebase(key, localVal);
                         }
                     } catch(e) {}
+                } else if ((key === 'fullchart_data' || key === 'chart1_data' || key === 'chart2_data' || key === 'chart3_data') && Array.isArray(remoteVal) && localValStr) {
+                    try {
+                        const localVal = JSON.parse(localValStr);
+                        var now = new Date();
+                        var dd = String(now.getDate()).padStart(2, '0');
+                        var mm = String(now.getMonth() + 1).padStart(2, '0');
+                        var todayStr = dd + '-' + mm;
+
+                        var localRow = Array.isArray(localVal) ? localVal.find(function(r) { return r.date === todayStr || r.date === "Today" || r.date === "आज"; }) : null;
+                        var remoteRow = Array.isArray(remoteVal) ? remoteVal.find(function(r) { return r.date === todayStr || r.date === "Today" || r.date === "आज"; }) : null;
+
+                        if (localRow && localRow.values && Array.isArray(localRow.values)) {
+                            var localCount = localRow.values.filter(function(v) { return v && v !== '' && v !== '-'; }).length;
+                            var remoteCount = (remoteRow && remoteRow.values && Array.isArray(remoteRow.values)) ? remoteRow.values.filter(function(v) { return v && v !== '' && v !== '-'; }).length : 0;
+                            if (localCount > remoteCount) {
+                                preserveLocal = true;
+                                pushToFirebase(key, localVal);
+                            }
+                        }
+                    } catch(e) {}
                 }
 
                 if (!preserveLocal && localValStr !== remoteValStr) {
@@ -190,7 +210,9 @@ function listenToFirebaseUpdates() {
             initChartPage();
         }
         if (typeof initAdminPage === 'function' && document.getElementById('admin-primary-table')) {
-            initAdminPage();
+            if (!document.querySelector('.editing')) {
+                initAdminPage();
+            }
         }
     });
 }
